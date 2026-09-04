@@ -1,0 +1,49 @@
+# Banco de dados de desenvolvimento do Point da Nane.
+#
+# Para ligar:      docker compose up -d
+# Para desligar:   docker compose down
+# Para apagar tudo (zera o banco):  docker compose down -v
+#
+# "services" = a lista de programas que o Docker vai rodar pra voce.
+# Aqui so tem um: o Postgres.
+
+services:
+  db:
+    # A versao do Postgres. A 16 e a mesma linha que o Supabase usa,
+    # entao o que funcionar aqui funciona la depois.
+    image: postgres:16-alpine
+
+    # Nome do container, pra ficar facil de achar em `docker ps`.
+    container_name: pointdanane-db
+
+    # Se o container cair, o Docker liga de novo sozinho.
+    restart: unless-stopped
+
+    # Usuario, senha e nome do banco que serao criados na primeira vez.
+    # Sao os mesmos valores que estao na DATABASE_URL do .env.
+    environment:
+      POSTGRES_USER: pointdanane
+      POSTGRES_PASSWORD: pointdanane
+      POSTGRES_DB: pointdanane
+
+    # "5433:5432" = a porta 5433 da sua maquina aponta para a porta 5432
+    # de dentro do container. Usamos 5433 pra nao brigar com algum
+    # Postgres que ja esteja instalado direto na maquina.
+    ports:
+      - '5433:5432'
+
+    # Guarda os dados numa area do Docker, pra nao perder tudo quando o
+    # container for desligado.
+    volumes:
+      - pointdanane-db-data:/var/lib/postgresql/data
+
+    # O Docker fica checando se o banco ja terminou de subir e esta
+    # aceitando conexoes.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pointdanane -d pointdanane']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pointdanane-db-data:

@@ -1,0 +1,29 @@
+# dependencias
+node_modules/
+
+# build
+dist/
+build/
+*.tsbuildinfo
+
+# codigo que o Prisma gera automaticamente a partir do schema.prisma
+# (recriado sozinho a cada `pnpm install`, nao precisa ir para o Git)
+src/generated/
+
+# variaveis de ambiente (segredos) - o .env.example fica versionado
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# cobertura de testes
+coverage/
+
+# sistema operacional / editores
+.DS_Store
+.idea/
+.vscode/

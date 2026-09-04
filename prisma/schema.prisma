@@ -1,0 +1,141 @@
+// Descricao do banco de dados do Point da Nane.
+//
+// Este arquivo e a "planta" do banco. A partir dele o Prisma gera:
+//  1. as migrations (os arquivos que criam as tabelas de verdade no Postgres)
+//  2. o codigo TypeScript que o NestJS usa para ler e gravar dados
+//
+// Regra do projeto: NAO existe tabela de pedido. O pedido e montado no
+// navegador do cliente e vira uma mensagem de WhatsApp, nunca e gravado.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// A partir do Prisma 7 o endereco do banco nao mora mais aqui:
+// ele fica no arquivo prisma.config.ts, que le a DATABASE_URL do .env.
+datasource db {
+  provider = "postgresql"
+}
+
+// Como a taxa de entrega e cobrada: um valor fixo para toda a cidade,
+// ou um valor diferente para cada bairro.
+enum ModoTaxaEntrega {
+  unica
+  por_bairro
+}
+
+// Os dois tipos de promocao previstos no design.
+//  - desconto_item: um item do cardapio com preco promocional
+//  - combo_autonomo: uma promocao que nao aponta para nenhum item existente
+enum TipoPromocao {
+  desconto_item
+  combo_autonomo
+}
+
+// A lanchonete. Neste MVP existe so uma linha aqui ("Point da Nane"),
+// mas tudo e amarrado a ela para o sistema poder atender varias no futuro.
+model Restaurante {
+  id                String          @id @default(uuid()) @db.Uuid
+  nome              String
+  whatsapp          String // numero que recebe os pedidos, so digitos, com DDI. Ex: 5511999999999
+  horarioAbertura   String          @map("horario_abertura") @db.VarChar(5) // "18:00"
+  horarioFechamento String          @map("horario_fechamento") @db.VarChar(5) // "23:30"
+  abertoManual      Boolean         @default(true) @map("aberto_manual") // chave do dono para forcar fechado
+  formasPagamento   String[]        @map("formas_pagamento") // ex: ["pix", "dinheiro", "credito"]
+  modoTaxaEntrega   ModoTaxaEntrega @default(por_bairro) @map("modo_taxa_entrega")
+  taxaEntregaUnica  Decimal?        @map("taxa_entrega_unica") @db.Decimal(10, 2) // so usado quando o modo e "unica"
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  donos    Dono[]
+  itens    ItemCardapio[]
+  promocoes Promocao[]
+  tarifas  TarifaBairro[]
+
+  @@map("restaurante")
+}
+
+// O dono, unico usuario que faz login. A senha nunca e guardada em texto:
+// gravamos so o "hash" (uma versao embaralhada e irreversivel dela).
+model Dono {
+  id            String @id @default(uuid()) @db.Uuid
+  restauranteId String @map("restaurante_id") @db.Uuid
+  email         String @unique
+  senhaHash     String @map("senha_hash")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id], onDelete: Cascade)
+
+  @@index([restauranteId])
+  @@map("dono")
+}
+
+// Um item do cardapio (um lanche, uma bebida, uma porcao...).
+model ItemCardapio {
+  id            String  @id @default(uuid()) @db.Uuid
+  restauranteId String  @map("restaurante_id") @db.Uuid
+  nome          String
+  descricao     String?
+  preco         Decimal @db.Decimal(10, 2)
+  categoria     String // ex: "Lanches", "Bebidas", "Porcoes"
+  maisPedido    Boolean @default(false) @map("mais_pedido") // ganha destaque laranja no card
+  ativo         Boolean @default(true) // item desligado nao aparece para o cliente
+  fotoUrl       String? @map("foto_url") // sem uso neste MVP, reservado para o futuro
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id], onDelete: Cascade)
+  promocoes   Promocao[]
+
+  @@index([restauranteId, categoria])
+  @@map("item_cardapio")
+}
+
+// Uma promocao. Os campos que podem ficar vazios dependem do tipo:
+//  - desconto_item:  usa itemCardapioId e precoCheio (o preco riscado)
+//  - combo_autonomo: usa nome e descricao proprios, sem item vinculado
+model Promocao {
+  id               String       @id @default(uuid()) @db.Uuid
+  restauranteId    String       @map("restaurante_id") @db.Uuid
+  ativa            Boolean      @default(true)
+  tipo             TipoPromocao
+  itemCardapioId   String?      @map("item_cardapio_id") @db.Uuid
+  nome             String?
+  descricao        String?
+  selo             String // texto que aparece no card. Ex: "Terca do X-Tudo"
+  precoPromocional Decimal      @map("preco_promocional") @db.Decimal(10, 2)
+  precoCheio       Decimal?     @map("preco_cheio") @db.Decimal(10, 2)
+  fotoUrl          String?      @map("foto_url") // sem uso neste MVP
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  restaurante  Restaurante   @relation(fields: [restauranteId], references: [id], onDelete: Cascade)
+  itemCardapio ItemCardapio? @relation(fields: [itemCardapioId], references: [id], onDelete: Cascade)
+
+  @@index([restauranteId])
+  @@index([itemCardapioId])
+  @@map("promocao")
+}
+
+// Taxa de entrega de um bairro. So usada quando o modo e "por_bairro".
+model TarifaBairro {
+  id            String  @id @default(uuid()) @db.Uuid
+  restauranteId String  @map("restaurante_id") @db.Uuid
+  bairro        String
+  valorTaxa     Decimal @map("valor_taxa") @db.Decimal(10, 2)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id], onDelete: Cascade)
+
+  // O mesmo bairro nao pode ser cadastrado duas vezes na mesma lanchonete.
+  @@unique([restauranteId, bairro])
+  @@map("tarifa_bairro")
+}

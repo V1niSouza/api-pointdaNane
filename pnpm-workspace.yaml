@@ -1,0 +1,8 @@
+# Configuracao do pnpm para este projeto.
+# Por seguranca, o pnpm nao deixa pacotes recem-baixados rodarem scripts de
+# instalacao. O Prisma precisa disso (ele baixa o motor que conversa com o
+# Postgres), entao liberamos explicitamente so os pacotes confiaveis abaixo.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  esbuild: true
