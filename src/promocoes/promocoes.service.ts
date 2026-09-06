@@ -6,6 +6,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { caminhoDaFotoDaPromocao } from '../common/caminho-da-foto.js';
+import { conferirFoto } from '../common/foto.js';
 import type {
   AtualizarPromocaoDto,
   CriarPromocaoDto,
@@ -204,6 +206,34 @@ export class PromocoesService {
     }
   }
 
+  /** Grava a foto da promocao. Mesma conferencia do item. */
+  async salvarFoto(restauranteId: string, id: string, dto: { dados: string; tipo: string }) {
+    const promocao = await this.prisma.promocao.findFirst({ where: { id, restauranteId } });
+    if (!promocao) throw new NotFoundException('Promocao nao encontrada.');
+
+    const { erro, bytes } = conferirFoto(dto.dados, dto.tipo);
+    if (erro || !bytes) throw new BadRequestException(erro ?? 'Nao consegui ler a imagem.');
+
+    const salva = await this.prisma.promocao.update({
+      where: { id },
+      data: { foto: new Uint8Array(bytes), fotoTipo: dto.tipo },
+      include: { itemCardapio: true },
+    });
+    return this.formatar(salva);
+  }
+
+  async removerFoto(restauranteId: string, id: string) {
+    const promocao = await this.prisma.promocao.findFirst({ where: { id, restauranteId } });
+    if (!promocao) throw new NotFoundException('Promocao nao encontrada.');
+
+    const salva = await this.prisma.promocao.update({
+      where: { id },
+      data: { foto: null, fotoTipo: null },
+      include: { itemCardapio: true },
+    });
+    return this.formatar(salva);
+  }
+
   private formatar(promocao: {
     id: string;
     tipo: string;
@@ -213,7 +243,8 @@ export class PromocoesService {
     descricao: string | null;
     precoPromocional: Prisma.Decimal;
     precoCheio: Prisma.Decimal | null;
-    fotoUrl: string | null;
+    foto: Uint8Array | null;
+    atualizadoEm: Date;
     itemCardapioId: string | null;
     itemCardapio: {
       id: string;
@@ -232,7 +263,7 @@ export class PromocoesService {
       descricao: promocao.descricao,
       precoPromocional: Number(promocao.precoPromocional),
       precoCheio: promocao.precoCheio === null ? null : Number(promocao.precoCheio),
-      fotoUrl: promocao.fotoUrl,
+      fotoUrl: caminhoDaFotoDaPromocao(promocao.id, promocao.foto !== null, promocao.atualizadoEm),
       itemCardapioId: promocao.itemCardapioId,
       item: promocao.itemCardapio
         ? {

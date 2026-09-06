@@ -4,10 +4,12 @@
 // filtrar pelo restauranteId que veio no cracha. Um id de item de outra
 // lanchonete simplesmente "nao existe" para este dono.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AtualizarItemDto, CriarItemDto, ListarItensDto } from './dto/item.dto.js';
+import { caminhoDaFotoDoItem } from '../common/caminho-da-foto.js';
+import { conferirFoto } from '../common/foto.js';
 
 @Injectable()
 export class ItensService {
@@ -124,6 +126,37 @@ export class ItensService {
     if (!existe) throw new NotFoundException('Item nao encontrado.');
   }
 
+  /**
+   * Grava a foto do item. O navegador ja reduziu e comprimiu a imagem; aqui
+   * conferimos formato e tamanho de novo, porque quem chama a API por fora do
+   * painel nao passa pelo navegador.
+   */
+  async salvarFoto(restauranteId: string, id: string, dto: { dados: string; tipo: string }) {
+    const item = await this.prisma.itemCardapio.findFirst({ where: { id, restauranteId } });
+    if (!item) throw new NotFoundException('Item nao encontrado.');
+
+    const { erro, bytes } = conferirFoto(dto.dados, dto.tipo);
+    if (erro || !bytes) throw new BadRequestException(erro ?? 'Nao consegui ler a imagem.');
+
+    const salvo = await this.prisma.itemCardapio.update({
+      where: { id },
+      // O Prisma quer Uint8Array; o Buffer ja e um, só com outro nome de tipo.
+      data: { foto: new Uint8Array(bytes), fotoTipo: dto.tipo },
+    });
+    return this.formatar(salvo);
+  }
+
+  async removerFoto(restauranteId: string, id: string) {
+    const item = await this.prisma.itemCardapio.findFirst({ where: { id, restauranteId } });
+    if (!item) throw new NotFoundException('Item nao encontrado.');
+
+    const salvo = await this.prisma.itemCardapio.update({
+      where: { id },
+      data: { foto: null, fotoTipo: null },
+    });
+    return this.formatar(salvo);
+  }
+
   private formatar(item: {
     id: string;
     nome: string;
@@ -132,7 +165,8 @@ export class ItensService {
     categoria: string;
     maisPedido: boolean;
     ativo: boolean;
-    fotoUrl: string | null;
+    foto: Uint8Array | null;
+    atualizadoEm: Date;
   }) {
     return {
       id: item.id,
@@ -143,7 +177,7 @@ export class ItensService {
       categoria: item.categoria,
       maisPedido: item.maisPedido,
       ativo: item.ativo,
-      fotoUrl: item.fotoUrl,
+      fotoUrl: caminhoDaFotoDoItem(item.id, item.foto !== null, item.atualizadoEm),
     };
   }
 }

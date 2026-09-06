@@ -223,6 +223,35 @@ checa "lista de pagamento vazia e recusada" 400 "$st" "$(cat /tmp/_corpo)"
 
 echo
 echo "=============================================="
+echo " 6b. FOTOS"
+echo "=============================================="
+# Um PNG de 1x1: o menor arquivo de imagem que existe.
+PNG='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+st=$(req PUT "/itens/$ITEM_PORCAO/foto" "{\"dados\":\"$PNG\",\"tipo\":\"image/png\"}" "$TOKEN" | head -1)
+checa "enviar foto do item" 200 "$st" "$(cat /tmp/_corpo)"
+CAMINHO_FOTO=$(campo fotoUrl)
+echo "  caminho: $CAMINHO_FOTO"
+
+# A foto e PUBLICA: quem abre o cardapio nao esta logado.
+st=$(req GET "$CAMINHO_FOTO" | head -1)
+checa "foto e servida sem login" 200 "$st" "$(cat /tmp/_corpo | head -c 60)"
+
+st=$(req PUT "/itens/$ITEM_PORCAO/foto" "{\"dados\":\"$PNG\",\"tipo\":\"image/gif\"}" "$TOKEN" | head -1)
+checa "formato nao aceito e recusado" 400 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req PUT "/itens/$ITEM_PORCAO/foto" '{"dados":"!!!nao e base64!!!","tipo":"image/png"}' "$TOKEN" | head -1)
+checa "conteudo que nao e imagem e recusado" 400 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req PUT "/itens/$ITEM_PORCAO/foto" "{\"dados\":\"$PNG\",\"tipo\":\"image/png\"}" | head -1)
+checa "enviar foto sem token e bloqueado" 401 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req DELETE "/itens/$ITEM_PORCAO/foto" '' "$TOKEN" | head -1)
+checa "remover a foto do item" 200 "$st" "$(cat /tmp/_corpo)"
+echo "  fotoUrl agora: $(campo fotoUrl)"
+
+echo
+echo "=============================================="
 echo " 7. LIMPEZA"
 echo "=============================================="
 st=$(req DELETE "/promocoes/$PROMO_ID" '' "$TOKEN" | head -1); checa "remover promocao de teste" 200 "$st" "$(cat /tmp/_corpo)"

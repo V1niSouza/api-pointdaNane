@@ -8,6 +8,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { lojaEstaAberta, minutosAgora } from '../common/horario.js';
+import { caminhoDaFotoDaPromocao, caminhoDaFotoDoItem } from '../common/caminho-da-foto.js';
 
 /** O banco guarda dinheiro como Decimal; o front espera um numero comum. */
 function paraNumero(valor: Prisma.Decimal): number;
@@ -118,7 +119,8 @@ export class CardapioService {
       preco: Prisma.Decimal;
       categoria: string;
       maisPedido: boolean;
-      fotoUrl: string | null;
+      foto: Uint8Array | null;
+      atualizadoEm: Date;
     }[],
   ) {
     // Os itens chegam em ordem de cadastro, entao a ordem em que cada
@@ -150,7 +152,8 @@ export class CardapioService {
     preco: Prisma.Decimal;
     categoria: string;
     maisPedido: boolean;
-    fotoUrl: string | null;
+    foto: Uint8Array | null;
+    atualizadoEm: Date;
   }) {
     return {
       id: item.id,
@@ -159,7 +162,7 @@ export class CardapioService {
       preco: paraNumero(item.preco),
       categoria: item.categoria,
       maisPedido: item.maisPedido,
-      fotoUrl: item.fotoUrl, // sempre null neste MVP (sem upload de foto)
+      fotoUrl: caminhoDaFotoDoItem(item.id, item.foto !== null, item.atualizadoEm),
     };
   }
 
@@ -172,7 +175,8 @@ export class CardapioService {
       descricao: string | null;
       precoPromocional: Prisma.Decimal;
       precoCheio: Prisma.Decimal | null;
-      fotoUrl: string | null;
+      foto: Uint8Array | null;
+      atualizadoEm: Date;
       itemCardapio: {
         id: string;
         nome: string;
@@ -181,7 +185,8 @@ export class CardapioService {
         categoria: string;
         maisPedido: boolean;
         ativo: boolean;
-        fotoUrl: string | null;
+        foto: Uint8Array | null;
+      atualizadoEm: Date;
       } | null;
     }[],
   ) {
@@ -201,7 +206,7 @@ export class CardapioService {
           precoPromocional: paraNumero(promo.precoPromocional),
           // E o preco riscado no card.
           precoCheio: paraNumero(promo.precoCheio ?? promo.itemCardapio?.preco ?? null),
-          fotoUrl: promo.fotoUrl,
+          fotoUrl: caminhoDaFotoDaPromocao(promo.id, promo.foto !== null, promo.atualizadoEm),
           // Presente so no tipo desconto_item: o front usa para adicionar o
           // item certo ao carrinho pelo preco promocional.
           item: promo.itemCardapio ? this.montarItem(promo.itemCardapio) : null,

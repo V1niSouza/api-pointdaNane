@@ -1,11 +1,17 @@
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { origensPermitidas } from './common/cors.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // O limite padrao de corpo e 100 KB, e uma foto nao cabe nisso. O front
+  // reduz a imagem antes de mandar, e a API confere de novo em
+  // src/common/foto.ts — este limite e so o teto do transporte.
+  app.useBodyParser('json', { limit: '2mb' });
 
   // Confere automaticamente o corpo e os parametros de toda requisicao
   // contra as regras dos DTOs, antes de o codigo rodar.

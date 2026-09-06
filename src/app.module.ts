@@ -10,6 +10,7 @@ import { ItensModule } from './itens/itens.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PromocoesModule } from './promocoes/promocoes.module.js';
 import { TarifasModule } from './tarifas/tarifas.module.js';
+import { FotosModule } from './fotos/fotos.module.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TarifasModule } from './tarifas/tarifas.module.js';
 
     // Publico (area do cliente)
     CardapioModule,
+    FotosModule,
 
     // Protegido por login (area do dono)
     ItensModule,

@@ -111,3 +111,13 @@ export class ListarItensDto {
   @Max(100)
   limite?: number = 6; // o design do painel mostra 6 itens por pagina
 }
+
+/** O corpo do envio de foto: a imagem em base64 e o formato dela. */
+export class EnviarFotoDto {
+  @IsString()
+  @MaxLength(1_400_000, { message: 'A imagem e muito grande.' })
+  dados!: string;
+
+  @IsString()
+  tipo!: string;
+}

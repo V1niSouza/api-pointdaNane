@@ -84,7 +84,13 @@ model ItemCardapio {
   categoria     String // ex: "Lanches", "Bebidas", "Porcoes"
   maisPedido    Boolean @default(false) @map("mais_pedido") // ganha destaque laranja no card
   ativo         Boolean @default(true) // item desligado nao aparece para o cliente
-  fotoUrl       String? @map("foto_url") // sem uso neste MVP, reservado para o futuro
+
+  // A FOTO MORA NO BANCO, e nao num servico de arquivos. Motivo: o Supabase
+  // E Postgres, entao isto funciona igual no local e em producao, entra no
+  // backup junto, e nao depende de disco (o da Render gratuita e apagado a
+  // cada reinicio). O volume e pequeno: dezenas de imagens de ~100 KB.
+  foto     Bytes?  @db.ByteA
+  fotoTipo String? @map("foto_tipo") // image/jpeg, image/png ou image/webp
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
@@ -110,7 +116,9 @@ model Promocao {
   selo             String // texto que aparece no card. Ex: "Terca do X-Tudo"
   precoPromocional Decimal      @map("preco_promocional") @db.Decimal(10, 2)
   precoCheio       Decimal?     @map("preco_cheio") @db.Decimal(10, 2)
-  fotoUrl          String?      @map("foto_url") // sem uso neste MVP
+  // Um combo autonomo nao tem item de onde puxar a foto: precisa da propria.
+  foto     Bytes?  @db.ByteA
+  fotoTipo String? @map("foto_tipo")
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")

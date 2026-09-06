@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import {
   CriarPromocaoDto,
   ListarPromocoesDto,
 } from './dto/promocao.dto.js';
+import { EnviarFotoDto } from '../itens/dto/item.dto.js';
 import { PromocoesService } from './promocoes.service.js';
 
 @Controller('promocoes')
@@ -53,5 +55,20 @@ export class PromocoesController {
   @Delete(':id')
   remover(@DonoAtual() dono: DonoAutenticado, @Param('id', ParseUUIDPipe) id: string) {
     return this.promocoesService.remover(dono.restauranteId, id);
+  }
+
+  /** A entrega da foto e publica e mora em FotosController; aqui so o envio. */
+  @Put(':id/foto')
+  enviarFoto(
+    @DonoAtual() dono: DonoAutenticado,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EnviarFotoDto,
+  ) {
+    return this.promocoesService.salvarFoto(dono.restauranteId, id, dto);
+  }
+
+  @Delete(':id/foto')
+  removerFoto(@DonoAtual() dono: DonoAutenticado, @Param('id', ParseUUIDPipe) id: string) {
+    return this.promocoesService.removerFoto(dono.restauranteId, id);
   }
 }
