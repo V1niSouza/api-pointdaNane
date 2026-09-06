@@ -5,6 +5,7 @@ import { lojaEstaAberta } from '../common/horario.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FORMAS_PAGAMENTO, type AtualizarConfiguracoesDto } from './dto/configuracoes.dto.js';
+import { exigeBairrosCadastrados } from '../common/modo-de-entrega.js';
 
 @Injectable()
 export class ConfiguracoesService {
@@ -43,7 +44,10 @@ export class ConfiguracoesService {
     // nao ficar um valor antigo esquecido no banco.
     const taxaParaGravar = modo === 'por_bairro' ? null : taxaUnica;
 
-    if (modo === 'por_bairro') {
+    // Confere o que o pedido PEDE, e nao o modo resultante: senao uma loja
+    // ja em "por bairro" que ficou sem bairros trava toda e qualquer
+    // configuracao, ate a chave de abrir e fechar. Ver common/modo-de-entrega.
+    if (exigeBairrosCadastrados(dto.modoTaxaEntrega)) {
       const bairros = await this.prisma.tarifaBairro.count({ where: { restauranteId } });
       if (bairros === 0) {
         throw new BadRequestException(

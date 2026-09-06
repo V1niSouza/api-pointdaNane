@@ -113,16 +113,16 @@ st=$(req GET '/promocoes?ativa=false' '' "$TOKEN" | head -1)
 checa "filtrar so as pausadas" 200 "$st" "$(cat /tmp/_corpo)"
 echo "  pausadas: $(campo paginacao.total)"
 
-# Pega um item real, ligado, para vincular a promocao.
-# NAO filtra por categoria: o nome da categoria mora nos dados de exemplo e ja
-# mudou uma vez ("Porcoes" -> "Porcoes" com cedilha), quebrando este trecho.
-# O filtro por categoria ja tem teste proprio mais acima.
-req GET '/itens?limite=50' '' "$TOKEN" > /dev/null
-ITEM_PORCAO=$(node -e "const d=JSON.parse(require('fs').readFileSync('/tmp/_corpo','utf8'));const i=d.itens.find(x=>x.ativo);if(!i){console.error('nenhum item ligado no banco - rode pnpm db:seed');process.exit(1)}console.log(i.id)")
-PRECO_PORCAO=$(node -e "const d=JSON.parse(require('fs').readFileSync('/tmp/_corpo','utf8'));const i=d.itens.find(x=>x.ativo);console.log(i.preco)")
-# O preco promocional sai do preco do item (metade), nunca um valor fixo: a
-# API recusa promocao mais cara que o preco cheio, e um valor fixo quebraria
-# assim que o item escolhido fosse mais barato que ele.
+# Cria um item PROPRIO para as promocoes se apoiarem.
+#
+# Antes, o script procurava um item ligado qualquer no banco. Isso dependia
+# dos dados de exemplo: com o banco vazio — ou depois de o proprio teste
+# desligar o unico item que existia — nao sobrava nenhum, e nove casos
+# quebravam em cascata. A bateria agora cria o que precisa e apaga no fim.
+st=$(req POST /itens '{"nome":"Item de apoio (teste)","preco":30,"categoria":"Lanches"}' "$TOKEN" | head -1)
+checa "criar item de apoio para as promocoes" 201 "$st" "$(cat /tmp/_corpo)"
+ITEM_PORCAO=$(campo id)
+PRECO_PORCAO=$(campo preco)
 PRECO_PROMO=$(node -e "console.log(($PRECO_PORCAO/2).toFixed(2))")
 
 st=$(req POST /promocoes "{\"tipo\":\"desconto_item\",\"itemCardapioId\":\"$ITEM_PORCAO\",\"selo\":\"Teste Desconto\",\"precoPromocional\":$PRECO_PROMO}" "$TOKEN" | head -1)
@@ -256,6 +256,9 @@ echo " 7. LIMPEZA"
 echo "=============================================="
 st=$(req DELETE "/promocoes/$PROMO_ID" '' "$TOKEN" | head -1); checa "remover promocao de teste" 200 "$st" "$(cat /tmp/_corpo)"
 st=$(req DELETE "/promocoes/$COMBO_ID" '' "$TOKEN" | head -1); checa "remover combo de teste" 200 "$st" "$(cat /tmp/_corpo)"
+st=$(req DELETE "/itens/$ITEM_PORCAO" '' "$TOKEN" | head -1)
+checa "remover item de apoio" 200 "$st" "$(cat /tmp/_corpo)"
+
 st=$(req DELETE "/itens/$ITEM_ID" '' "$TOKEN" | head -1);      checa "remover item de teste" 200 "$st" "$(cat /tmp/_corpo)"
 st=$(req DELETE "/tarifas/$TARIFA_ID" '' "$TOKEN" | head -1);  checa "remover bairro de teste" 200 "$st" "$(cat /tmp/_corpo)"
 req PATCH /configuracoes '{"horarioAbertura":"18:00","whatsapp":"5511999998888"}' "$TOKEN" > /dev/null
