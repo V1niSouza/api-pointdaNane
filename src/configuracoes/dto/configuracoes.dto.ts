@@ -14,6 +14,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { AVISO_WHATSAPP, FORMATO_WHATSAPP, somenteDigitos } from '../../common/whatsapp.js';
 
 /** Formas de pagamento que o painel oferece. */
 export const FORMAS_PAGAMENTO = [
@@ -43,11 +44,8 @@ export class AtualizarConfiguracoesDto {
    * Ex.: 5511999998888
    */
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/\D/g, '') : value))
-  @Matches(/^\d{12,13}$/, {
-    message:
-      'O WhatsApp deve ter 12 ou 13 digitos, incluindo o codigo do pais. Ex.: 5511999998888',
-  })
+  @Transform(({ value }) => (typeof value === 'string' ? somenteDigitos(value) : value))
+  @Matches(FORMATO_WHATSAPP, { message: AVISO_WHATSAPP })
   whatsapp?: string;
 
   @IsOptional()

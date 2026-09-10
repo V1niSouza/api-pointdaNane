@@ -25,7 +25,13 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "testar:api": "bash scripts/testar-api.sh"
+    "testar:api": "bash scripts/testar-api.sh",
+    "producao": "node scripts/com-producao.mjs",
+    "producao:migrate": "node scripts/com-producao.mjs ./node_modules/.bin/prisma migrate deploy",
+    "producao:status": "node scripts/com-producao.mjs ./node_modules/.bin/prisma migrate status",
+    "criar-dono": "node --import tsx prisma/criar-dono.ts",
+    "producao:criar-dono": "node scripts/com-producao.mjs node --import tsx prisma/criar-dono.ts",
+    "producao:api": "node scripts/com-producao.mjs ./node_modules/.bin/nest start"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
