@@ -10,6 +10,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import { problemaNaSenha } from '../src/common/senha.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -18,6 +19,14 @@ const prisma = new PrismaClient({
 // Dados de acesso do dono no ambiente local. Em producao isso muda.
 const EMAIL_DONO = 'nane@pointdanane.com.br';
 const SENHA_DONO = 'pointdanane123';
+
+// A MESMA regra que o login aplica. Sem isto, daria para semear uma senha
+// que o proprio login depois recusaria — e a dona ficaria trancada para fora
+// sem ninguem entender o porque.
+const problema = problemaNaSenha(SENHA_DONO);
+if (problema) {
+  throw new Error(`A senha do seed nao serve: ${problema}`);
+}
 
 async function main() {
   console.log('Limpando dados de exemplo antigos...');

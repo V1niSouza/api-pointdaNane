@@ -265,6 +265,37 @@ req PATCH /configuracoes '{"horarioAbertura":"18:00","whatsapp":"5511999998888"}
 
 echo
 echo "=============================================="
+echo " 8. FORCA BRUTA NO LOGIN"
+echo "=============================================="
+# O e-mail leva a hora no nome: cada rodada comeca com o contador zerado,
+# entao a bateria pode rodar de novo sem esperar os 15 minutos da trava.
+ALVO="bloqueio-$(date +%s%N)@teste.com"
+
+# 7 caracteres: passava na regra antiga (6) e nao passa na nova (8).
+st=$(req POST /auth/login "{\"email\":\"$ALVO\",\"senha\":\"sete123\"}" | head -1)
+checa "senha menor que o minimo e recusada antes de consultar o banco" 400 "$st" "$(cat /tmp/_corpo)"
+
+for tentativa in 1 2 3 4 5; do
+  st=$(req POST /auth/login "{\"email\":\"$ALVO\",\"senha\":\"senhaerrada123\"}" | head -1)
+  checa "tentativa $tentativa de 5 ainda responde recusa normal" 401 "$st" "$(cat /tmp/_corpo)"
+done
+
+st=$(req POST /auth/login "{\"email\":\"$ALVO\",\"senha\":\"senhaerrada123\"}" | head -1)
+checa "a 6a tentativa e travada" 429 "$st" "$(cat /tmp/_corpo)"
+echo "  resposta: $(campo message)"
+
+if echo "$(cat /tmp/_corpo)" | grep -qi "minuto"; then
+  checa "a trava diz quanto tempo esperar" sim sim ''
+else
+  checa "a trava diz quanto tempo esperar" sim nao "$(cat /tmp/_corpo)"
+fi
+
+# A trava e por e-mail: travar um invasor nao pode deixar a Nane de fora.
+st=$(req POST /auth/login '{"email":"nane@pointdanane.com.br","senha":"pointdanane123"}' | head -1)
+checa "a dona continua entrando normalmente" 200 "$st" "$(cat /tmp/_corpo)"
+
+echo
+echo "=============================================="
 echo " RESULTADO: $ok passaram, $falhou falharam"
 echo "=============================================="
 [ "$falhou" -eq 0 ]

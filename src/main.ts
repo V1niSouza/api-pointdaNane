@@ -27,6 +27,15 @@ async function bootstrap() {
     }),
   );
 
+  // Atras de um proxy (a Render, por exemplo) o req.ip mostra o IP DO
+  // PROXY, e nao o de quem chamou — todos os visitantes viram um so, e a
+  // trava do login por IP passaria a contar todo mundo junto. Ligado por
+  // variavel de ambiente porque so vale onde ha mesmo um proxy na frente:
+  // confiar nesse cabecalho sem proxy deixaria qualquer um forjar o IP.
+  if (process.env.CONFIAR_NO_PROXY === 'true') {
+    app.set('trust proxy', 1);
+  }
+
   // O front (Next.js) roda em outra porta, entao precisa de permissao
   // explicita para chamar esta API a partir do navegador.
   app.enableCors({

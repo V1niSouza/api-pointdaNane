@@ -1,20 +1,37 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { descreverEspera, type LimiteDeTentativas } from '../common/limite-de-tentativas.js';
 import type { ConteudoDoToken, DonoAutenticado } from './dono-autenticado.js';
 import type { LoginDto } from './dto/login.dto.js';
+import { LIMITE_POR_EMAIL, LIMITE_POR_IP } from './limites-de-login.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Inject(LIMITE_POR_EMAIL) private readonly porEmail: LimiteDeTentativas,
+    @Inject(LIMITE_POR_IP) private readonly porIp: LimiteDeTentativas,
   ) {}
 
-  async login({ email, senha }: LoginDto) {
+  async login({ email, senha }: LoginDto, ip: string) {
+    const chave = email.toLowerCase().trim();
+    const agora = Date.now();
+
+    // A trava e conferida ANTES de tocar no banco e antes do bcrypt: uma
+    // requisicao barrada nao pode custar trabalho nenhum ao servidor.
+    const espera = this.porEmail.esperaEmSegundos(chave, agora) ?? this.porIp.esperaEmSegundos(ip, agora);
+    if (espera !== null) {
+      throw new HttpException(
+        `Muitas tentativas de login. Tente de novo em ${descreverEspera(espera)}.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const dono = await this.prisma.dono.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: chave },
       include: { restaurante: { select: { id: true, nome: true } } },
     });
 
@@ -27,11 +44,20 @@ export class AuthService {
       // senha. Sem isso, uma resposta rapida demais entregaria que o e-mail
       // nao existe.
       await bcrypt.compare(senha, '$2b$10$invalidoinvalidoinvalidoinvalidoinvalidoinvalidoinvalido');
+      this.anotarErro(chave, ip, agora);
       throw naoAutorizado;
     }
 
     const senhaConfere = await bcrypt.compare(senha, dono.senhaHash);
-    if (!senhaConfere) throw naoAutorizado;
+    if (!senhaConfere) {
+      this.anotarErro(chave, ip, agora);
+      throw naoAutorizado;
+    }
+
+    // Acertou: as duas travas voltam a zero. Quem sabe a senha nunca fica
+    // preso do lado de fora por causa de tentativas anteriores.
+    this.porEmail.limpar(chave);
+    this.porIp.limpar(ip);
 
     const conteudo: ConteudoDoToken = {
       sub: dono.id,
@@ -66,5 +92,10 @@ export class AuthService {
       restauranteId: registro.restauranteId,
       restauranteNome: registro.restaurante.nome,
     };
+  }
+
+  private anotarErro(chave: string, ip: string, agora: number) {
+    this.porEmail.registrarFalha(chave, agora);
+    this.porIp.registrarFalha(ip, agora);
   }
 }
