@@ -9,9 +9,11 @@
 
 services:
   db:
-    # A versao do Postgres. A 16 e a mesma linha que o Supabase usa,
-    # entao o que funcionar aqui funciona la depois.
-    image: postgres:16-alpine
+    # A versao do Postgres. Tem de ser a MESMA linha que o Supabase roda em
+    # producao (17), senao a unica peca da pilha em que local e nuvem
+    # discordam vira investigacao chata depois — ordenacao de texto com
+    # acento, por exemplo, e decidida aqui e muda entre versoes.
+    image: postgres:17-alpine
 
     # Nome do container, pra ficar facil de achar em `docker ps`.
     container_name: pointdanane-db
