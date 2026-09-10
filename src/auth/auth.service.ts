@@ -1,10 +1,18 @@
-import { HttpException, HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { descreverEspera, type LimiteDeTentativas } from '../common/limite-de-tentativas.js';
 import type { ConteudoDoToken, DonoAutenticado } from './dono-autenticado.js';
 import type { LoginDto } from './dto/login.dto.js';
+import type { TrocarSenhaDto } from './dto/trocar-senha.dto.js';
 import { LIMITE_POR_EMAIL, LIMITE_POR_IP } from './limites-de-login.js';
 
 @Injectable()
@@ -91,6 +99,43 @@ export class AuthService {
       email: registro.email,
       restauranteId: registro.restauranteId,
       restauranteNome: registro.restaurante.nome,
+    };
+  }
+
+  /**
+   * Troca a senha do dono logado.
+   *
+   * Exige a senha ATUAL junto com a nova. Sem isso, quem roubasse o cracha
+   * trocaria a senha e tomaria a conta — o token sozinho nao pode bastar
+   * para uma acao que expulsa a dona do proprio painel.
+   */
+  async trocarSenha(dono: DonoAutenticado, { senhaAtual, senhaNova }: TrocarSenhaDto) {
+    const registro = await this.prisma.dono.findUnique({ where: { id: dono.id } });
+    if (!registro) throw new UnauthorizedException('Sessao invalida.');
+
+    const confere = await bcrypt.compare(senhaAtual, registro.senhaHash);
+    if (!confere) {
+      throw new UnauthorizedException('A senha atual esta incorreta.');
+    }
+
+    // So depois de provar quem e: trocar por uma igual nao troca nada, e
+    // quem digitou isso provavelmente se enganou.
+    if (senhaAtual === senhaNova) {
+      throw new BadRequestException('A senha nova precisa ser diferente da atual.');
+    }
+
+    await this.prisma.dono.update({
+      where: { id: registro.id },
+      data: { senhaHash: await bcrypt.hash(senhaNova, 10) },
+    });
+
+    // Provou quem e: se havia tentativas fracassadas acumuladas, esquecemos.
+    this.porEmail.limpar(registro.email);
+
+    // O aviso e parte do contrato: o front mostra isso na tela.
+    return {
+      trocada: true,
+      aviso: 'Aparelhos que ja estavam logados seguem logados ate a sessao vencer.',
     };
   }
 

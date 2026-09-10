@@ -296,6 +296,41 @@ checa "a dona continua entrando normalmente" 200 "$st" "$(cat /tmp/_corpo)"
 
 echo
 echo "=============================================="
+echo " 9. TROCAR A SENHA"
+echo "=============================================="
+ORIGINAL='pointdanane123'
+NOVA='senhatrocada456'
+
+st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$ORIGINAL\",\"senhaNova\":\"$NOVA\"}" | head -1)
+checa "trocar senha sem token e bloqueado" 401 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req PATCH /auth/senha "{\"senhaAtual\":\"naoehaminha99\",\"senhaNova\":\"$NOVA\"}" "$TOKEN" | head -1)
+checa "senha atual errada e recusada" 401 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$ORIGINAL\",\"senhaNova\":\"sete123\"}" "$TOKEN" | head -1)
+checa "senha nova curta demais e recusada" 400 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$ORIGINAL\",\"senhaNova\":\"$ORIGINAL\"}" "$TOKEN" | head -1)
+checa "senha nova igual a atual e recusada" 400 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$ORIGINAL\",\"senhaNova\":\"$NOVA\"}" "$TOKEN" | head -1)
+checa "a troca acontece" 200 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req POST /auth/login "{\"email\":\"nane@pointdanane.com.br\",\"senha\":\"$NOVA\"}" | head -1)
+checa "login com a senha NOVA funciona" 200 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req POST /auth/login "{\"email\":\"nane@pointdanane.com.br\",\"senha\":\"$ORIGINAL\"}" | head -1)
+checa "login com a senha VELHA nao funciona mais" 401 "$st" "$(cat /tmp/_corpo)"
+
+# Devolve a senha original: a bateria nao pode deixar rastro.
+st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$NOVA\",\"senhaNova\":\"$ORIGINAL\"}" "$TOKEN" | head -1)
+checa "senha devolvida ao original (limpeza)" 200 "$st" "$(cat /tmp/_corpo)"
+
+st=$(req POST /auth/login "{\"email\":\"nane@pointdanane.com.br\",\"senha\":\"$ORIGINAL\"}" | head -1)
+checa "a senha original vale de novo" 200 "$st" "$(cat /tmp/_corpo)"
+
+echo
+echo "=============================================="
 echo " RESULTADO: $ok passaram, $falhou falharam"
 echo "=============================================="
 [ "$falhou" -eq 0 ]
