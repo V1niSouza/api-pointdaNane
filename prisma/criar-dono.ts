@@ -4,18 +4,22 @@
 // desenvolvimento; este aqui cria uma linha de cada, com dados reais, e nao
 // inventa cardapio nenhum — quem cadastra o cardapio e a Nane, pelo painel.
 //
+// O .env deste projeto ja aponta para o Supabase, entao este comando escreve
+// no banco de verdade sem precisar de nenhum prefixo.
+//
 // A SENHA NUNCA MORA NO CODIGO. Ela vem do ambiente, e a forma segura de
-// entregar e escrevendo no .env.producao (que esta fora do Git):
+// entregar e escrevendo no proprio .env (que esta fora do Git):
 //
 //   RESTAURANTE_NOME=Point da Nane
 //   RESTAURANTE_WHATSAPP=5511999998888
 //   DONO_EMAIL=nane@exemplo.com.br
 //   DONO_SENHA=<a senha de verdade>
 //
-// e entao:  pnpm producao:criar-dono
+// e entao:  pnpm criar-dono
 //
 // Passar pela linha de comando tambem funciona, mas deixa a senha no
 // historico do terminal — por isso o arquivo e o caminho recomendado.
+// Depois de rodar, apague a DONO_SENHA do .env.
 
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
