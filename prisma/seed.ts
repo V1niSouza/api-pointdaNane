@@ -3,30 +3,20 @@
 // construimos as telas.
 //
 // Rode com:  pnpm db:seed
+//
+// O seed NAO cria o login do dono: senha fixa no codigo vira senha publica
+// quando o repositorio e aberto. Depois do seed, crie o dono com
+// `pnpm criar-dono` (DONO_EMAIL e DONO_SENHA no .env).
 // Ele pode ser rodado varias vezes sem duplicar nada: apaga o restaurante
 // de exemplo antes de criar tudo de novo.
 
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '../src/generated/prisma/client.js';
-import { problemaNaSenha } from '../src/common/senha.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
-
-// Dados de acesso do dono no ambiente local. Em producao isso muda.
-const EMAIL_DONO = 'nane@pointdanane.com.br';
-const SENHA_DONO = 'pointdanane123';
-
-// A MESMA regra que o login aplica. Sem isto, daria para semear uma senha
-// que o proprio login depois recusaria — e a dona ficaria trancada para fora
-// sem ninguem entender o porque.
-const problema = problemaNaSenha(SENHA_DONO);
-if (problema) {
-  throw new Error(`A senha do seed nao serve: ${problema}`);
-}
 
 async function main() {
   console.log('Limpando dados de exemplo antigos...');
@@ -44,16 +34,6 @@ async function main() {
       formasPagamento: ['pix', 'dinheiro', 'credito', 'debito'],
       modoTaxaEntrega: 'por_bairro',
       taxaEntregaUnica: null,
-    },
-  });
-
-  console.log('Criando o login do dono...');
-  await prisma.dono.create({
-    data: {
-      restauranteId: restaurante.id,
-      email: EMAIL_DONO,
-      // Nunca guardamos a senha em texto: bcrypt embaralha de forma irreversivel.
-      senhaHash: await bcrypt.hash(SENHA_DONO, 10),
     },
   });
 
@@ -157,8 +137,7 @@ async function main() {
   console.log('');
   console.log('Pronto! Banco populado.');
   console.log(`  Restaurante ...: ${restaurante.nome} (id ${restaurante.id})`);
-  console.log(`  Login do dono .: ${EMAIL_DONO}`);
-  console.log(`  Senha do dono .: ${SENHA_DONO}`);
+  console.log('  Login do dono .: nenhum — rode `pnpm criar-dono`');
 }
 
 main()

@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Bateria de testes manuais contra a API rodando em localhost:3333.
 API=http://localhost:3333
+
+# O login vem do ambiente, nunca do codigo. Crie o dono antes com
+# `pnpm criar-dono` e rode:  DONO_EMAIL=... DONO_SENHA=... pnpm testar:api
+if [ -z "$DONO_EMAIL" ] || [ -z "$DONO_SENHA" ]; then
+  echo "Defina DONO_EMAIL e DONO_SENHA (o dono criado com pnpm criar-dono)."
+  exit 1
+fi
 ok=0; falhou=0
 
 # checa(descricao, status_esperado, status_recebido, corpo)
@@ -31,12 +38,12 @@ campo() { node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/t
 echo "=============================================="
 echo " 1. LOGIN"
 echo "=============================================="
-st=$(req POST /auth/login '{"email":"nane@pointdanane.com.br","senha":"pointdanane123"}' | head -1)
+st=$(req POST /auth/login "{\"email\":\"$DONO_EMAIL\",\"senha\":\"$DONO_SENHA\"}" | head -1)
 checa "login com credenciais corretas" 200 "$st" "$(cat /tmp/_corpo)"
 TOKEN=$(campo token)
 echo "  token recebido: ${TOKEN:0:25}..."
 
-st=$(req POST /auth/login '{"email":"nane@pointdanane.com.br","senha":"senhaerrada"}' | head -1)
+st=$(req POST /auth/login "{\"email\":\"$DONO_EMAIL\",\"senha\":\"senhaerrada\"}" | head -1)
 checa "login com senha errada e recusado" 401 "$st" "$(cat /tmp/_corpo)"
 
 st=$(req POST /auth/login '{"email":"naoexiste@teste.com","senha":"qualquer123"}' | head -1)
@@ -291,14 +298,14 @@ else
 fi
 
 # A trava e por e-mail: travar um invasor nao pode deixar a Nane de fora.
-st=$(req POST /auth/login '{"email":"nane@pointdanane.com.br","senha":"pointdanane123"}' | head -1)
+st=$(req POST /auth/login "{\"email\":\"$DONO_EMAIL\",\"senha\":\"$DONO_SENHA\"}" | head -1)
 checa "a dona continua entrando normalmente" 200 "$st" "$(cat /tmp/_corpo)"
 
 echo
 echo "=============================================="
 echo " 9. TROCAR A SENHA"
 echo "=============================================="
-ORIGINAL='pointdanane123'
+ORIGINAL="$DONO_SENHA"
 NOVA='senhatrocada456'
 
 st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$ORIGINAL\",\"senhaNova\":\"$NOVA\"}" | head -1)
@@ -316,17 +323,17 @@ checa "senha nova igual a atual e recusada" 400 "$st" "$(cat /tmp/_corpo)"
 st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$ORIGINAL\",\"senhaNova\":\"$NOVA\"}" "$TOKEN" | head -1)
 checa "a troca acontece" 200 "$st" "$(cat /tmp/_corpo)"
 
-st=$(req POST /auth/login "{\"email\":\"nane@pointdanane.com.br\",\"senha\":\"$NOVA\"}" | head -1)
+st=$(req POST /auth/login "{\"email\":\"$DONO_EMAIL\",\"senha\":\"$NOVA\"}" | head -1)
 checa "login com a senha NOVA funciona" 200 "$st" "$(cat /tmp/_corpo)"
 
-st=$(req POST /auth/login "{\"email\":\"nane@pointdanane.com.br\",\"senha\":\"$ORIGINAL\"}" | head -1)
+st=$(req POST /auth/login "{\"email\":\"$DONO_EMAIL\",\"senha\":\"$ORIGINAL\"}" | head -1)
 checa "login com a senha VELHA nao funciona mais" 401 "$st" "$(cat /tmp/_corpo)"
 
 # Devolve a senha original: a bateria nao pode deixar rastro.
 st=$(req PATCH /auth/senha "{\"senhaAtual\":\"$NOVA\",\"senhaNova\":\"$ORIGINAL\"}" "$TOKEN" | head -1)
 checa "senha devolvida ao original (limpeza)" 200 "$st" "$(cat /tmp/_corpo)"
 
-st=$(req POST /auth/login "{\"email\":\"nane@pointdanane.com.br\",\"senha\":\"$ORIGINAL\"}" | head -1)
+st=$(req POST /auth/login "{\"email\":\"$DONO_EMAIL\",\"senha\":\"$ORIGINAL\"}" | head -1)
 checa "a senha original vale de novo" 200 "$st" "$(cat /tmp/_corpo)"
 
 echo

@@ -4,7 +4,7 @@ import { conferirDadosDoDono } from './dados-do-dono';
 const COMPLETO = {
   RESTAURANTE_NOME: 'Point da Nane',
   RESTAURANTE_WHATSAPP: '5511999998888',
-  DONO_EMAIL: 'nane@pointdanane.com.br',
+  DONO_EMAIL: 'dono@exemplo.com',
   DONO_SENHA: 'senhaboa123',
 };
 
@@ -14,8 +14,8 @@ describe('conferirDadosDoDono', () => {
   });
 
   it('devolve o e-mail em minusculas e sem espacos sobrando', () => {
-    const { dados } = conferirDadosDoDono({ ...COMPLETO, DONO_EMAIL: '  Nane@PointDaNane.com.BR ' });
-    expect(dados?.email).toBe('nane@pointdanane.com.br');
+    const { dados } = conferirDadosDoDono({ ...COMPLETO, DONO_EMAIL: '  Dono@Exemplo.COM ' });
+    expect(dados?.email).toBe('dono@exemplo.com');
   });
 
   it('aceita o whatsapp escrito com mascara e guarda so os digitos', () => {

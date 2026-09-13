@@ -7,7 +7,7 @@ describe('problemaNaSenha', () => {
   });
 
   it('aceita uma senha mais longa que o minimo', () => {
-    expect(problemaNaSenha('pointdanane123')).toBeNull();
+    expect(problemaNaSenha('senhaboa123')).toBeNull();
   });
 
   it('recusa uma senha curta demais e diz o tamanho exigido', () => {
