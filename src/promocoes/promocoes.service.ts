@@ -6,7 +6,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { caminhoDaFotoDaPromocao } from '../common/caminho-da-foto.js';
+import { caminhoDaFotoDaPromocao, caminhoDaFotoDoItem } from '../common/caminho-da-foto.js';
 import { conferirFoto } from '../common/foto.js';
 import type {
   AtualizarPromocaoDto,
@@ -252,6 +252,8 @@ export class PromocoesService {
       preco: Prisma.Decimal;
       categoria: string;
       ativo: boolean;
+      foto: Uint8Array | null;
+      atualizadoEm: Date;
     } | null;
   }) {
     return {
@@ -271,6 +273,13 @@ export class PromocoesService {
             nome: promocao.itemCardapio.nome,
             preco: Number(promocao.itemCardapio.preco),
             categoria: promocao.itemCardapio.categoria,
+            // O desconto em item nao tem foto propria: a lista do painel
+            // mostra a do item, como o cardapio do cliente.
+            fotoUrl: caminhoDaFotoDoItem(
+              promocao.itemCardapio.id,
+              promocao.itemCardapio.foto !== null,
+              promocao.itemCardapio.atualizadoEm,
+            ),
             // O painel avisa quando a promocao aponta para um item desligado
             // (ela nao aparece para o cliente nesse caso).
             ativo: promocao.itemCardapio.ativo,
